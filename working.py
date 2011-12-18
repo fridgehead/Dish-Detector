@@ -30,7 +30,7 @@ def main(thresh):
     print (radius, center)
 
     cv.Circle(im, center, radius, (0, 0, 255), 3, 8, 0)
-    cv.Circle(edges, center, radius, (255, 255, 255), 3, 8, 0)
+    cv.Circle(edges, center, radius, 255, 3, 8, 0)
 
 
 
