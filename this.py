@@ -1,8 +1,11 @@
+from annoyances import alarms
+import time
 import sys
 import cv
 import numpy as np
 
-def main(thresh):
+def main(thresh, debug=False):
+  
   plugradius = [0,0]
   sinkx = [0,0]
   sinky = [0,0]
@@ -28,7 +31,8 @@ def main(thresh):
 
   storage = cv.CreateMat(640, 1, cv.CV_32FC3)
   cv.HoughCircles(gray, storage, cv.CV_HOUGH_GRADIENT, 2, gray.width / 18, thresh, 200,0,0)
-
+  
+  detectedShit = 0
   for i in range(storage.rows ):
     val = storage[i, 0] 
 
@@ -38,23 +42,65 @@ def main(thresh):
     print "circular feature at: " +   str(center), "size: " , str(radius) 
     #try and classify this as sink
     if sinkx[0] - sinkx[1] < center[0] < sinkx[0] + sinkx[1]:
-      print "poss x"
       if sinky[0] - sinky[1] < center[1] < sinky[0] + sinky[1]:
-        print "poss y"
         if plugradius[0] - plugradius[1] < radius < plugradius[0] + plugradius[1]:
 	  print "PLUGHOLE"
           cv.Circle(im, center, radius, (255, 0, 255), 3, 8, 0)
     else:
+      detectedShit = detectedShit + 1
       cv.Circle(im, center, radius, (0, 0, 255), 3, 8, 0)
 
 
 
-  print "rows: ", storage.rows
-  cv.NamedWindow('Circles')
-  cv.ShowImage('Circles', im)
-  cv.WaitKey(0)
-  cv.ShowImage('Circles', edges)
-  cv.WaitKey(0)
+  print "detected shit: ", detectedShit
+  alarm = alarms()
+  if detectedShit > 0:
+    #read the last status from the file. Update it to now
+    #also consult the Table-o-Annoyance(tm) to see if we set off an alarm/explosion
+    f = open("status","r")
+    stat = f.readline().strip()
+    f.close()
+    if stat == "clean":
+       print "last status was : " + stat + ", changing it to DIRTY"
+       f = open("status", "w")
+       f.write("DIRTY")
+       f.close()
+       alarm.doAlarm(0) 
+    else:
+       #just update the shitcounter
+       print "updating shit counter"
+       f = open("shitcount", "r")
+       ct = int(f.readline().strip())
+       f.close()
+       ct = ct + 1
+       if 1 < ct < 2:
+	       alarm.doAlarm(0)
+       elif 2 < ct < 5:
+	       alarm.doAlarm(1)
+       f = open("shitcount", "w")
+       f.write(str(ct))
+       f.close()
+
+
+  else:
+      print "Last status was dirty and now were CLEAN"
+      f = open("status", "w")
+      f.write("clean")
+      f.close()
+      print "resetting shitcount"
+      f = open("shitcount", "w")
+      f.write("0")
+      f.close()
+
+      alarm.stopAllAlarms()
+  if debug: 
+    cv.NamedWindow('Circles')
+    cv.ShowImage('Circles', im)
+    cv.WaitKey(0)
+    cv.ShowImage('Circles', edges)
+    cv.WaitKey(0)
 
 if __name__ == '__main__':
-  main(int(sys.argv[1]))
+  
+  main(int(sys.argv[1]), debug=False)
+
