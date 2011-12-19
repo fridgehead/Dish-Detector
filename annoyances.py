@@ -14,7 +14,6 @@ class alarms:
 		else:
 			self.ser.write(chr(0))
 
-	print "second alarm"
 
 	def third(self,state):
 		print "third"
@@ -22,19 +21,26 @@ class alarms:
 	alarmList = [first, second, third]
 	ser = None
 	def __init__ (self):
-		self.ser = serial.Serial('/dev/ttyUSB1', baudrate=9600)
-		self.ser.open()
-		pass
+		try:
+			self.ser = serial.Serial('/dev/ttyUSB1', baudrate=9600)
+			self.ser.open()
+		except:
+			print "serial port not available"
 
 	def doAlarm(self, level):
+		if self.ser == None:
+			print "serial port busted for level: ", level
+			return
 		if 0 <= level < len(self.alarmList):
 			for a in self.alarmList:
 				a(self, False)
 			self.alarmList[level](self, True)
 
-		pass
 
 	def stopAllAlarms(self):
+		if self.ser == None:
+			print "stoppig alarms but serial port dead"
+			return
 		for a in self.alarmList:
 			a(self, False)
 
