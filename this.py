@@ -3,6 +3,16 @@ import time
 import sys
 import cv
 import numpy as np
+def getBrightness(img):
+  hue = cv.CreateImage(cv.GetSize(img), cv.IPL_DEPTH_8U,1)
+  sat = cv.CreateImage(cv.GetSize(img), cv.IPL_DEPTH_8U,1)
+  val = cv.CreateImage(cv.GetSize(img), cv.IPL_DEPTH_8U,1)
+  test = cv.CloneImage(img)
+  cv.CvtColor(img,test, cv.CV_BGR2HSV)
+  cv.Split(img, hue, sat,val,None)
+  	
+  return cv.Avg(val)[0]
+
 
 def main(debug=False, fromCam=False):
   thresh = 200 
@@ -28,12 +38,19 @@ def main(debug=False, fromCam=False):
     im = cv.QueryFrame(capture)
   else:
     im = cv.LoadImage(sys.argv[1])
+  bright = getBrightness(im)
+  print "image brightness = " , bright
+  #lets see if its too dark and we should shut the alarms up
+  if bright < 30:
+	  alarm = alarms()
+	  alarm.stopAllAlarms()
+	  print "Stopping all alarms as its night time, alarms count will continue in the morning"
+	  exit()
   #create grayscale and edge storage
   gray = cv.CreateImage(cv.GetSize(im), cv.IPL_DEPTH_8U, 1)
   edges = cv.CreateImage(cv.GetSize(im), cv.IPL_DEPTH_8U, 1)
   #convert the image to grayscale
   cv.CvtColor(im, gray, cv.CV_BGR2GRAY)
-  #check the brightness of the image, if were too dark then exit and shut off alarms
 
   #edge detect it, then smooth the edges
   cv.Canny(gray, edges, thresh, thresh / 2, 3)
@@ -116,5 +133,5 @@ def main(debug=False, fromCam=False):
 
 if __name__ == '__main__':
   
-  main(debug=True, fromCam=True)
+  main(debug=True, fromCam=False)
 
