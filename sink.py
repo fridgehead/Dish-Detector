@@ -3,6 +3,8 @@ import time
 import sys
 import cv
 
+#calculate the average brightness of an image
+#used to work out if its night time and turn the alarms off
 def getBrightness(img):
   hue = cv.CreateImage(cv.GetSize(img), cv.IPL_DEPTH_8U,1)
   sat = cv.CreateImage(cv.GetSize(img), cv.IPL_DEPTH_8U,1)
@@ -13,13 +15,19 @@ def getBrightness(img):
   	
   return cv.Avg(val)[0]
 
-
+'''
+debug = displays a cv window with each stage in it. Doesnt work on headless servers
+fromCam = use the camera as the image source, if False then load an image supplied by sys.argv[1]
+'''
 def main(debug=False, fromCam=False):
+  # threshold for canny edge detect
   thresh = 200 
+  #min and max radius for the plughole
   plugradius = [0,0]
+  #coordinates of the plughole [coord, +-tolerance]
   sinkx = [0,0]
   sinky = [0,0]
-  #load the sink defs
+  #load the sink defs from settings
   f = open("settings", "r")
   for line in f:
     tok = line.split("=")
@@ -31,13 +39,14 @@ def main(debug=False, fromCam=False):
       sinky = [int(p) for p in tok[1].split(",")]
   print "sink at: " + str(sinkx[0]) + ":" + str(sinky[0])
 
-  #get an image
+  # get an image from our source
   im = None
   if fromCam == True:
-    capture = cv.CaptureFromCAM(1)
+    capture = cv.CaptureFromCAM(-1) #-1 will select the first camera available, usually /dev/video0 on linux
     im = cv.QueryFrame(capture)
   else:
     im = cv.LoadImage(sys.argv[1])
+  #work out the brightness of the image
   bright = getBrightness(im)
   print "image brightness = " , bright
   #lets see if its too dark and we should shut the alarms up
@@ -46,6 +55,7 @@ def main(debug=False, fromCam=False):
 	  alarm.stopAllAlarms()
 	  print "Stopping all alarms as its night time, alarms count will continue in the morning"
 	  exit()
+
   #create grayscale and edge storage
   gray = cv.CreateImage(cv.GetSize(im), cv.IPL_DEPTH_8U, 1)
   edges = cv.CreateImage(cv.GetSize(im), cv.IPL_DEPTH_8U, 1)
@@ -58,11 +68,12 @@ def main(debug=False, fromCam=False):
  
   #create storage for hough cirlces
   storage = cv.CreateMat(640, 1, cv.CV_32FC3)
-  #find the circles
+  #find the circles, most of these parameters are magic numbers that work well enough for where the camera is installed
   cv.HoughCircles(gray, storage, cv.CV_HOUGH_GRADIENT, 2, gray.width / 18, thresh, 300,0,0)
  
-  #how much shit have we detected?
+  #how much crap have we detected?
   detectedShit = 0
+  #for each circle detected...
   for i in range(storage.rows ):
     val = storage[i, 0] #because numpy arrays are retarded 
 
@@ -87,17 +98,18 @@ def main(debug=False, fromCam=False):
     else:
       print "..PH failed X check"
     if not sinkFound:
-      print "..probably some unwashed shit"
+      print "..probably some unwashed crap"
       detectedShit = detectedShit + 1
       cv.Circle(im, center, radius, (0, 0, 255), 3, 8, 0)
 
 
-
-  print "detected shit: ", detectedShit
+  print "detected crap: ", detectedShit
+  #create our alarm object to trigger annoyances
   alarm = alarms()
   if detectedShit > 0:
     #read the last status from the file. Update it to now
     #also consult the Table-o-Annoyance(tm) to see if we set off an alarm/explosion
+    #lots of this could be tidied up but I DONT CARE
     f = open("status","r")
     stat = f.readline().strip()
     f.close()
@@ -108,9 +120,9 @@ def main(debug=False, fromCam=False):
        f.close()
        alarm.doAlarm(0) 
     else:
-       #just update the shitcounter
-       print "updating shit counter"
-       f = open("shitcount", "r")
+       #just update the crapcounter
+       print "updating crap counter"
+       f = open("crapcount", "r")
        ct = int(f.readline().strip())
        f.close()
        ct = ct + 1
@@ -118,7 +130,9 @@ def main(debug=False, fromCam=False):
 	       alarm.doAlarm(0)
        elif 2 < ct < 5:
 	       alarm.doAlarm(1)
-       f = open("shitcount", "w")
+       elif ct >= 5:
+               alarm.doAlarm(2)
+       f = open("crapcount", "w")
        f.write(str(ct))
        f.close()
 
@@ -128,12 +142,13 @@ def main(debug=False, fromCam=False):
       f = open("status", "w")
       f.write("clean")
       f.close()
-      print "resetting shitcount"
-      f = open("shitcount", "w")
+      print "resetting crapcount"
+      f = open("crapcount", "w")
       f.write("0")
       f.close()
-
+      # kill ALL the alarms \o/
       alarm.stopAllAlarms()
+  #if debugging then display each stage of the process in a cv windows. Useful when configuring things
   if debug: 
     cv.NamedWindow('Circles')
     cv.ShowImage('Circles', im)
@@ -142,7 +157,5 @@ def main(debug=False, fromCam=False):
     cv.WaitKey(0)
 
 if __name__ == '__main__':
-  from time import time
-  n = time()
-  main(debug=True, fromCam=True)
-  print str(time() - n)
+  #print change these options when fiddling
+  main(debug=False, fromCam=True)
