@@ -2,7 +2,7 @@ from annoyances import alarms
 import time
 import sys
 import cv
-import numpy as np
+
 def getBrightness(img):
   hue = cv.CreateImage(cv.GetSize(img), cv.IPL_DEPTH_8U,1)
   sat = cv.CreateImage(cv.GetSize(img), cv.IPL_DEPTH_8U,1)
@@ -34,7 +34,7 @@ def main(debug=False, fromCam=False):
   #get an image
   im = None
   if fromCam == True:
-    capture = cv.CaptureFromCAM(0)
+    capture = cv.CaptureFromCAM(1)
     im = cv.QueryFrame(capture)
   else:
     im = cv.LoadImage(sys.argv[1])
@@ -59,7 +59,7 @@ def main(debug=False, fromCam=False):
   #create storage for hough cirlces
   storage = cv.CreateMat(640, 1, cv.CV_32FC3)
   #find the circles
-  cv.HoughCircles(gray, storage, cv.CV_HOUGH_GRADIENT, 2, gray.width / 18, thresh, 200,0,0)
+  cv.HoughCircles(gray, storage, cv.CV_HOUGH_GRADIENT, 2, gray.width / 18, thresh, 300,0,0)
  
   #how much shit have we detected?
   detectedShit = 0
@@ -70,13 +70,23 @@ def main(debug=False, fromCam=False):
     center = (int(val[0]), int(val[1]))
 
     print "circular feature at: " +   str(center), "size: " , str(radius) 
+    sinkFound = False
     #try and classify this as sink
     if sinkx[0] - sinkx[1] < center[0] < sinkx[0] + sinkx[1]:
       if sinky[0] - sinky[1] < center[1] < sinky[0] + sinky[1]:
-        if plugradius[0] - plugradius[1] < radius < plugradius[0] + plugradius[1]:
+	#plugradius is now min/max
+        if plugradius[0]  < radius < plugradius[1]:
 	  print "..probably the PLUGHOLE"
           cv.Circle(im, center, radius, (255, 0, 255), 3, 8, 0)
+	  sinkFound = True
+	else:
+	  print "..PH failed radius check"
+      else:
+          print "..PH failed Y check"
+    
     else:
+      print "..PH failed X check"
+    if not sinkFound:
       print "..probably some unwashed shit"
       detectedShit = detectedShit + 1
       cv.Circle(im, center, radius, (0, 0, 255), 3, 8, 0)
@@ -114,7 +124,7 @@ def main(debug=False, fromCam=False):
 
 
   else:
-      print "Last status was dirty and now were CLEAN"
+      print "Last status was dirty and now we're CLEAN"
       f = open("status", "w")
       f.write("clean")
       f.close()
@@ -132,6 +142,7 @@ def main(debug=False, fromCam=False):
     cv.WaitKey(0)
 
 if __name__ == '__main__':
-  
-  main(debug=True, fromCam=False)
-
+  from time import time
+  n = time()
+  main(debug=True, fromCam=True)
+  print str(time() - n)
