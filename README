@@ -1,0 +1,10 @@
+dirty dish detector
+
+
+Requires
+> python 2.7
+> opencv
+> python opencv bindings
+
+everything in annoyances.py will need rewriting for other networks, this one is specific to the london hackspace.
+
